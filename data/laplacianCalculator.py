@@ -1,11 +1,12 @@
 import sys
+import os
 import numpy as np
 from numpy import linalg as la
 import math
 
 # Mutates list
 def stringsToNumbers (list):
-    for i in range(len(list)):
+    for i in range(1,len(list)):
         list[i] = float(list[i])
 
 # Return: list of points (each a list of coords)
@@ -32,21 +33,25 @@ def getDist (pointA, pointB):
 # - symmetric matrix with cell (i,j) holding w(i,j)/degree(i)
 # - list of sqrt(degree)
 def getDistMatrixAndDegreeRoots (points):
+
+    # Initialize dist matrix and degree array
     M = []
     degrees = []
-
-    # Consider all pairs of points
     for i in range(len(points)):
         row = []
         for j in range(len(points)):
-            if i == j:
-                dist = 0
-            else:
-                dist = getDist(points[i], points[j])
-            row.append(-1 * dist)
-        # Calculate degree and scale down row
+            row.append(0)
         M.append(row)
-        degrees.append(-1 * np.sum(row))
+        degrees.append(0)
+
+    # Consider all pairs of points
+    for i in range(len(points)):
+        for j in range(i+1, len(points)):
+            dist = getDist(points[i], points[j])
+            M[i][j] = -1 * dist
+            M[j][i] = -1 * dist
+            degrees[i] += dist
+            degrees[j] += dist
 
     # Set diagonal to degrees
     for i in range(len(points)):
@@ -60,9 +65,10 @@ def getDistMatrixAndDegreeRoots (points):
     return np.array(M), degreeRoots
 
 # Compute eigenvals and eigenvecs for a symmetric matrix
-def getEigenValsAndVecs (symmetricM):
+def getEigenValsAndVecs (symmetricM, putEvecsOnRows = False):
     evals, evecs = la.eigh(symmetricM)
-    evecs = np.transpose(evecs) # Put evecs on columns
+    if putEvecsOnRows:
+        evecs = np.transpose(evecs) # Put evecs on columns
     return evals, evecs
 
 # Multiply evectors element-wise with degree roots to get final evectors
@@ -116,10 +122,33 @@ def mainRoutine (inputFile, evalFile, evecFile):
     writeEvecs(evecs, evecFile)
 
 args = sys.argv
-if len(args) != 4:
-    print("Give 3 args: input file, evalue output file, evector output file")
-else:
+numArgs = len(args)-1
+if numArgs == 3:
     inputFile = args[1]
     evalFile = args[2]
     evecFile = args[3]
     mainRoutine(inputFile, evalFile, evecFile)
+elif numArgs == 4:
+    base = args[1]
+    inputFile = base + os.sep + args[2]
+    evalFile = base + os.sep + args[3]
+    evecFile = base + os.sep + args[4]
+    mainRoutine(inputFile, evalFile, evecFile)
+elif numArgs == 2:
+    base = args[1]
+    inputFile = base + os.sep + args[2]
+    evalFile = base + os.sep + "evals"
+    evecFile = base + os.sep + "evecs.csv"
+    mainRoutine(inputFile, evalFile, evecFile)
+elif numArgs == 1:
+    base = args[1]
+    inputFile = base + os.sep + "points"
+    evalFile = base + os.sep + "evals"
+    evecFile = base + os.sep + "evecs.csv"
+    mainRoutine(inputFile, evalFile, evecFile)
+else:
+    print("Must pass 1 to 4 args:")
+    print("- 3 args: input file, evalue output file, evector output file")
+    print("- 4 args: base folder + input, eval, evec")
+    print("  - 2 args: base folder + input. Default output: evals, evecs.csv")
+    print("  - 1 arg: base folder. Default input: points")
