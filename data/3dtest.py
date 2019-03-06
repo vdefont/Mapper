@@ -23,8 +23,7 @@ with open('./toy/fourComponents/points.csv','r') as csvfile:
         y.append(float(row[3]))
         z.append(float(row[4]))
 
-for c, m, zl, zh in [('r', 'o', -50, -25), ('b', '^', -30, -5)]:
-    ax.scatter(x, y, z)
+ax.scatter(x, y, z)
 
 ax.set_xlabel('X Label')
 ax.set_ylabel('Y Label')
