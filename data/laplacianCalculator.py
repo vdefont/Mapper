@@ -25,7 +25,10 @@ def pdf (x):
     return math.exp(-x*x/2.0) / math.sqrt(2.0*math.pi)
 # Return: euclidian distance put through gaussian filter
 def getDist (pointA, pointB):
-    euclidDist = la.norm(pointA - pointB)
+    sum = 0.0
+    for i in range(len(pointA)):
+        sum += (float(pointA[i]) - float(pointB[i])) ** 2
+    euclidDist = math.sqrt(sum)
     dist = pdf(euclidDist)
     return dist
 
@@ -142,7 +145,7 @@ elif numArgs == 2:
     mainRoutine(inputFile, evalFile, evecFile)
 elif numArgs == 1:
     base = args[1]
-    inputFile = base + os.sep + "points"
+    inputFile = base + os.sep + "points.csv"
     evalFile = base + os.sep + "evals"
     evecFile = base + os.sep + "evecs.csv"
     mainRoutine(inputFile, evalFile, evecFile)
@@ -151,4 +154,4 @@ else:
     print("- 3 args: input file, evalue output file, evector output file")
     print("- 4 args: base folder + input, eval, evec")
     print("  - 2 args: base folder + input. Default output: evals, evecs.csv")
-    print("  - 1 arg: base folder. Default input: points")
+    print("  - 1 arg: base folder. Default input: points.csv")

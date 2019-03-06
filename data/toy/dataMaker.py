@@ -7,10 +7,10 @@ def makeTwoComponents ():
     for i in range(0,10):
         for j in range(0,10):
             points.append((i,j))
-            points.append((i+30,j))
+            points.append((i+130,j))
 
     # Bridge
-    for i in range(10, 30):
+    for i in range(10, 130):
         points.append((i, 4))
 
     return points
@@ -70,6 +70,6 @@ def writeLinesToFile (lines, filename):
         file.write(line + "\n")
     file.close()
 
-points = makeTwoDisconnected()
+points = makeFourComponents()
 pointsToStrings(points)
-writeLinesToFile(points, "twoDisconnected/points")
+writeLinesToFile(points, "fourComponents/points.csv")
