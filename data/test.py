@@ -1,20 +1,20 @@
-import matplotlib.pyplot as plt
+import sys
+import os
 import csv
 
-x = []
-y = []
-z = []
-
-with open('./toy/fourComponents/points.csv','r') as csvfile:
-    plots = csv.reader(csvfile, delimiter=',')
-    for row in plots:
-        print(row)
-        x.append(int(row[0]))
-        y.append(int(row[1]))
-        z.append(float(row[2]))
-
-plt.scatter(x,y,c=z)
-plt.xlabel('x')
-plt.ylabel('y')
-plt.legend()
-plt.show()
+args = sys.argv
+numArgs = len(args) - 1
+if numArgs < 3:
+    print("Please follow this format:")
+    print("<dataFile> <col1> <col2> (<col3>) (-color <colorFile>)")
+    print("  example: points.csv 0 1")
+    print("  example: points.csv 1 4 0 -color colors.csv")
+else:
+    dataFile = args[1]
+    colorFile = None
+    cols = []
+    for i in range(2, len(args)):
+        if args[i] == "-color":
+            colorFile = args[i+1]
+            break
+        cols.append(int(args[i]))

@@ -22,12 +22,35 @@ def readColsFromFile (fileName, colsDict):
                 colIndex = int(colIndex)
                 colsDict[colIndex].append(float(row[colIndex]))
 
-def twoDimPlot (x, y, xLab = None, yLab = None, color = None):
+def readColFromFile (fileName, colIndex):
+    colsDict = {}
+    colsDict[colIndex] = []
+    readColsFromFile(fileName, colsDict)
+    return colsDict[colIndex]
+
+# Mutates list
+# "a","b","a","c" -> 0,1,0,2
+def labelsToIndices (labels):
+
+    # Build dict
+    nextKey = 0
+    labelToIndex = {}
+    for l in labels:
+        if l not in labelToIndex:
+            labelToIndex[l] = nextKey
+            nextKey += 1
+
+    # Update labels
+    for i in range(0,len(labels)):
+        labels[i] = labelToIndex[labels[i]]
+
+def twoDimPlot (x, y, xLab = None, yLab = None, color = None, pointSize = 40):
     # Make plot
+    marker = 'o'
     if color:
-        plt.scatter(x, y, c=color)
+        plt.scatter(x, y, c=color, marker=marker, edgecolors='none', s=pointSize)
     else:
-        plt.scatter(x, y)
+        plt.scatter(x, y, marker=marker, edgecolors='none', s=pointSize)
 
     # Add labels
     if xLab:
@@ -38,12 +61,15 @@ def twoDimPlot (x, y, xLab = None, yLab = None, color = None):
     plt.show()
 
 # Argument dict: label -> vals
-def threeDimPlot (xyzDict):
+def threeDimPlot (xyzDict, color = None, pointSize = 40):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
     [xi, yi, zi] = list(xyzDict.keys())
-    ax.scatter(xyzDict[xi], xyzDict[yi], xyzDict[zi])
+    if color:
+        ax.scatter(xyzDict[xi], xyzDict[yi], xyzDict[zi], c = color, edgecolors='none', s=pointSize)
+    else:
+        ax.scatter(xyzDict[xi], xyzDict[yi], xyzDict[zi], edgecolors='none', s=pointSize)
 
     ax.set_xlabel(xi)
     ax.set_ylabel(yi)
@@ -51,58 +77,43 @@ def threeDimPlot (xyzDict):
 
     plt.show()
 
+def printInstructions ():
+    print("Please follow this format:")
+    print("<dataFile> <col1> <col2> (<col3>) (-color <colorFile>)")
+    print("  example: points.csv 0 1")
+    print("  example: points.csv 1 4 0 -color colors.csv")
+
 args = sys.argv
 numArgs = len(args) - 1
-if numArgs < 1 or numArgs > 4:
-    print("Must input 1 to 4 args:")
-    print("- 1 arg: base folder")
-    print("- 2 args: base folder, evec index (for color)")
-    print("- 3 args: base folder, evec1 index, evec2")
-    print("- 4 args: base folder, evec1 index, evec2 index, evec3 index")
+if numArgs < 3:
+    printInstructions()
 else:
-    # Get file names
-    baseFolder = args[1]
-    # Ensure that there is a slash in file path
-    if baseFolder[-1] != os.sep:
-        baseFolder += os.sep
-    pointsFile = baseFolder + POINTS_FILENAME
-    evecsFile = baseFolder + EVECS_FILENAME
+    evecsFile = args[1]
+    colorFile = None
+    colIndices = []
+    for i in range(2, len(args)):
+        if args[i] == "-color":
+            i += 1
+            colorFile = args[i]
+            break
+        colIndices.append(int(args[i]))
 
     # Set up dict of evecs
     evecs = {}
-    for i in range(2, numArgs+1):
-        evecs[int(args[i])] = []
+    for i in colIndices:
+        evecs[i] = []
     if len(evecs) > 0:
         readColsFromFile(evecsFile, evecs)
 
-    if numArgs in [1, 2]:
+    color = None
+    if colorFile:
+        color = readColFromFile(colorFile, 0)
+        labelsToIndices(color)
 
-        # Read in points
-        points = {}
-        points[0] = []
-        points[1] = []
-        readColsFromFile(pointsFile, points)
-
-        # Calculate color
-        color = None
-        if numArgs == 2:
-            evecs = {}
-            evecIndex = int(args[2])
-            evecs[evecIndex] = []
-            readColsFromFile(evecsFile, evecs)
-            color = evecs[evecIndex]
-
-        twoDimPlot(points[0], points[1], color=color)
-
-    # Plot of 2 or 3 evecs
+    if len(evecs) == 2:
+        [evecAIndex, evecBIndex] = list(evecs.keys())
+        twoDimPlot(evecs[evecAIndex], evecs[evecBIndex], xLab=evecAIndex, yLab=evecBIndex, color=color)
+    elif len(evecs) == 3:
+        threeDimPlot(evecs, color=color)
     else:
-        evecs = {}
-        for i in range(2, numArgs+1):
-            evecs[int(args[i])] = []
-        readColsFromFile(evecsFile, evecs)
-
-        if numArgs == 3:
-            [evecAIndex, evecBIndex] = list(evecs.keys())
-            twoDimPlot(evecs[evecAIndex], evecs[evecBIndex], xLab=evecAIndex, yLab=evecBIndex)
-        if numArgs == 4:
-            threeDimPlot(evecs)
+        printInstructions()

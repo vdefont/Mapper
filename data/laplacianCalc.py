@@ -4,9 +4,13 @@ import numpy as np
 from numpy import linalg as la
 import math
 
+###############
+# Input file does not need to have normalized columns
+
+
 # Mutates list
 def stringsToNumbers (list):
-    for i in range(1,len(list)):
+    for i in range(0,len(list)):
         list[i] = float(list[i])
 
 # Return: list of points (each a list of coords)
@@ -16,9 +20,15 @@ def readPoints (filename):
     for line in file:
         coords = line.split(",")
         stringsToNumbers(coords)
-        point = np.array(coords)
-        points.append(point)
-    return points
+        points.append(coords)
+    return np.array(points)
+
+# Input: np array
+def normalizeCols (arr):
+    arrMean = arr.sum(axis = 0) / len(arr)
+    arrStd = arr.std(axis = 0)
+    normalized = (arr - arrMean) / arrStd
+    return normalized
 
 # Outputs value for gaussian dist
 def pdf (x):
@@ -114,6 +124,8 @@ def mainRoutine (inputFile, evalFile, evecFile):
 
     # Read input
     points = readPoints(inputFile)
+
+    points = normalizeCols(points)
 
     # Compute evals and evecs
     M, degreeRoots = getDistMatrixAndDegreeRoots(points)
