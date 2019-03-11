@@ -3,43 +3,22 @@ import os
 import numpy as np
 from numpy import linalg as la
 import math
+import random
 
 ###############
 # Input file does not need to have normalized columns
-
-
-# Mutates list
-def stringsToNumbers (list):
-    for i in range(0,len(list)):
-        list[i] = float(list[i])
-
-# Return: list of points (each a list of coords)
-def readPoints (filename):
-    points = []
-    file = open(filename, 'r')
-    for line in file:
-        coords = line.split(",")
-        stringsToNumbers(coords)
-        points.append(coords)
-    return np.array(points)
-
-# Input: np array
-def normalizeCols (arr):
-    arrMean = arr.sum(axis = 0) / len(arr)
-    arrStd = arr.std(axis = 0)
-    normalized = (arr - arrMean) / arrStd
-    return normalized
 
 # Outputs value for gaussian dist
 def pdf (x):
     return math.exp(-x*x/2.0) / math.sqrt(2.0*math.pi)
 # Return: euclidian distance put through gaussian filter
-def getDist (pointA, pointB):
+def getDist (pointA, pointB, gaussianFilter = False):
     sum = 0.0
     for i in range(len(pointA)):
         sum += (float(pointA[i]) - float(pointB[i])) ** 2
-    euclidDist = math.sqrt(sum)
-    dist = pdf(euclidDist)
+    dist = math.sqrt(sum)
+    if gaussianFilter:
+        dist = pdf(dist)
     return dist
 
 # Return:
@@ -60,7 +39,7 @@ def getDistMatrixAndDegreeRoots (points):
     # Consider all pairs of points
     for i in range(len(points)):
         for j in range(i+1, len(points)):
-            dist = getDist(points[i], points[j])
+            dist = getDist(points[i], points[j], gaussianFilter = True)
             M[i][j] = -1 * dist
             M[j][i] = -1 * dist
             degrees[i] += dist
@@ -78,10 +57,8 @@ def getDistMatrixAndDegreeRoots (points):
     return np.array(M), degreeRoots
 
 # Compute eigenvals and eigenvecs for a symmetric matrix
-def getEigenValsAndVecs (symmetricM, putEvecsOnRows = False):
-    evals, evecs = la.eigh(symmetricM)
-    if putEvecsOnRows:
-        evecs = np.transpose(evecs) # Put evecs on columns
+def getEigenValsAndVecs (distM):
+    evals, evecs = la.eigh(distM)
     return evals, evecs
 
 # Multiply evectors element-wise with degree roots to get final evectors
@@ -89,81 +66,104 @@ def adjustEvecs (evecs, degreeRoots):
     for i in range(len(evecs)):
         evecs[i] = np.multiply(evecs[i], degreeRoots[i])
 
-# Convert list to comma-separated string
-def pointToString (point):
-    ret = ""
-    for i in range(len(point)):
-        ret += str(point[i])
-        if i != len(point) - 1:
-            ret += ","
-    return ret
+# Returns (sampled points, sampledIndices)
+def samplePoints (points, sampleFrac):
+    numRows = len(points)
+    if sampleFrac is None:
+        return points, range(numRows)
+    else:
+        numToSample = int(sampleFrac * numRows)
+        sampleIndices = random.sample(range(numRows), numToSample)
+        list.sort(sampleIndices)
+        return points[sampleIndices,:], sampleIndices
 
-# File writing methods
-def writeLinesToFile (lines, filename):
-    file = open(filename, 'w')
-    for line in lines:
-        file.write(line + "\n")
-    file.close()
-def writeEvals (evals, evalFile):
-    # Convert to strings
-    strList = []
-    for eval in evals:
-        strList.append(str(eval))
-    writeLinesToFile(strList, evalFile)
-def writeEvecs (evecs, evecFile):
-    # Convert to strings
-    strList = []
-    for evec in evecs:
-        asStr = pointToString(evec)
-        strList.append(asStr)
-    writeLinesToFile(strList, evecFile)
+# Returns evecs, extended to all points
+def extendSampleToAll (pointsAll, sampledIndices, evecsSampled):
+
+    evecsSampled = evecsSampled.tolist()
+
+    # Populate list with every point
+    evecs = []
+    indexInSmallList = 0
+    for i in range(len(pointsAll)):
+
+        if i in sampledIndices:
+            evecs.append(evecsSampled[indexInSmallList])
+            indexInSmallList += 1
+
+        # If not sampled, find closest sample
+        else:
+            bestDist = None
+            closestIndex = None
+            for j in range(len(sampledIndices)):
+                sampledIndex = sampledIndices[j]
+                curDist = getDist(pointsAll[i], pointsAll[sampledIndex])
+                if bestDist is None or curDist < bestDist:
+                    bestDist = curDist
+                    closestIndex = j
+            evecs.append(evecsSampled[closestIndex])
+
+    return np.array(evecs)
+
 
 # Input: data
 # Output: evals (one per line), evecs (one per line)
-def mainRoutine (inputFile, evalFile, evecFile):
+def mainRoutine (inputFile, evalFile, evecFile, sampleFraction):
 
     # Read input
-    points = readPoints(inputFile)
-
-    points = normalizeCols(points)
+    pointsAll = np.loadtxt(inputFile, delimiter=",")
+    points, sampledIndices = samplePoints(pointsAll, sampleFraction)
 
     # Compute evals and evecs
-    M, degreeRoots = getDistMatrixAndDegreeRoots(points)
-    evals, evecs = getEigenValsAndVecs(M)
+    distM, degreeRoots = getDistMatrixAndDegreeRoots(points)
+    evals, evecs = getEigenValsAndVecs(distM)
     adjustEvecs(evecs, degreeRoots) # Convert to final evecs for normalized matrix
 
+    # Extend to include all points not sampled
+    if sampleFraction:
+        evecs = extendSampleToAll(pointsAll, sampledIndices, evecs)
+
     # Write output
-    writeEvals(evals, evalFile)
-    writeEvecs(evecs, evecFile)
+    np.savetxt(evalFile, evals, delimiter=",", fmt="%1.13f")
+    np.savetxt(evecFile, evecs, delimiter=",", fmt="%1.13f")
 
 args = sys.argv
 numArgs = len(args)-1
+
+# Handle -sampleFraction flag
+sampleFraction = None
+if numArgs >= 2 and args[-2] == "-sampleFraction":
+    sampleFraction = float(args[-1])
+    numArgs -= 2
+
+# Handle rest of data
 if numArgs == 3:
     inputFile = args[1]
     evalFile = args[2]
     evecFile = args[3]
-    mainRoutine(inputFile, evalFile, evecFile)
+    mainRoutine(inputFile, evalFile, evecFile, sampleFraction)
 elif numArgs == 4:
     base = args[1]
     inputFile = base + os.sep + args[2]
     evalFile = base + os.sep + args[3]
     evecFile = base + os.sep + args[4]
-    mainRoutine(inputFile, evalFile, evecFile)
+    mainRoutine(inputFile, evalFile, evecFile, sampleFraction)
 elif numArgs == 2:
     base = args[1]
     inputFile = base + os.sep + args[2]
     evalFile = base + os.sep + "evals"
     evecFile = base + os.sep + "evecs.csv"
-    mainRoutine(inputFile, evalFile, evecFile)
+    mainRoutine(inputFile, evalFile, evecFile, sampleFraction)
 elif numArgs == 1:
     base = args[1]
     inputFile = base + os.sep + "points.csv"
     evalFile = base + os.sep + "evals"
     evecFile = base + os.sep + "evecs.csv"
-    mainRoutine(inputFile, evalFile, evecFile)
+    mainRoutine(inputFile, evalFile, evecFile, sampleFraction)
 else:
     print("Must pass 1 to 4 args:")
     print("- 3 args: input file, evalue output file, evector output file")
     print("- 4 args: base folder + input, eval, evec")
     print("  - 2 args: base folder + input. Default output: evals, evecs.csv")
     print("  - 1 arg: base folder. Default input: points.csv")
+    print("Optional: -sampleFraction flag at the end")

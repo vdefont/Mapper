@@ -9,6 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 # Default file names for points and evecs
 POINTS_FILENAME = "points.csv"
 EVECS_FILENAME = "evecs.csv"
+DEFAULT_POINT_SIZE = 10;
 
 # Populates dict: index -> vals
 def readColsFromFile (fileName, colsDict):
@@ -44,13 +45,13 @@ def labelsToIndices (labels):
     for i in range(0,len(labels)):
         labels[i] = labelToIndex[labels[i]]
 
-def twoDimPlot (x, y, xLab = None, yLab = None, color = None, pointSize = 40):
+def twoDimPlot (x, y, xLab = None, yLab = None, color = None, pointSize = DEFAULT_POINT_SIZE):
     # Make plot
     marker = 'o'
     if color:
-        plt.scatter(x, y, c=color, marker=marker, edgecolors='none', s=pointSize)
+        plt.scatter(x, y, c=color, marker=marker, edgecolors='none', s=pointSize, cmap="gray")
     else:
-        plt.scatter(x, y, marker=marker, edgecolors='none', s=pointSize)
+        plt.scatter(x, y, marker=marker, edgecolors='none', s=pointSize, cmap="gray")
 
     # Add labels
     if xLab:
@@ -61,15 +62,15 @@ def twoDimPlot (x, y, xLab = None, yLab = None, color = None, pointSize = 40):
     plt.show()
 
 # Argument dict: label -> vals
-def threeDimPlot (xyzDict, color = None, pointSize = 40):
+def threeDimPlot (xyzDict, color = None, pointSize = DEFAULT_POINT_SIZE):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
     [xi, yi, zi] = list(xyzDict.keys())
     if color:
-        ax.scatter(xyzDict[xi], xyzDict[yi], xyzDict[zi], c = color, edgecolors='none', s=pointSize)
+        ax.scatter(xyzDict[xi], xyzDict[yi], xyzDict[zi], c = color, edgecolors='none', s=pointSize, cmap="gray")
     else:
-        ax.scatter(xyzDict[xi], xyzDict[yi], xyzDict[zi], edgecolors='none', s=pointSize)
+        ax.scatter(xyzDict[xi], xyzDict[yi], xyzDict[zi], edgecolors='none', s=pointSize, cmap="gray")
 
     ax.set_xlabel(xi)
     ax.set_ylabel(yi)
