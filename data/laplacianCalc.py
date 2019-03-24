@@ -4,6 +4,9 @@ import numpy as np
 from numpy import linalg as la
 import math
 import random
+import heapq
+
+import util
 
 ###############
 # Input file does not need to have normalized columns
@@ -78,7 +81,7 @@ def samplePoints (points, sampleFrac):
         return points[sampleIndices,:], sampleIndices
 
 # Returns evecs, extended to all points
-def extendSampleToAll (pointsAll, sampledIndices, evecsSampled):
+def extendSampleToAll (pointsAll, sampledIndices, evecsSampled, kNearest):
 
     evecsSampled = evecsSampled.tolist()
 
@@ -93,22 +96,32 @@ def extendSampleToAll (pointsAll, sampledIndices, evecsSampled):
 
         # If not sampled, find closest sample
         else:
-            bestDist = None
-            closestIndex = None
+            # Build queue of nearest items
+            queue = []
             for j in range(len(sampledIndices)):
                 sampledIndex = sampledIndices[j]
-                curDist = getDist(pointsAll[i], pointsAll[sampledIndex])
-                if bestDist is None or curDist < bestDist:
-                    bestDist = curDist
-                    closestIndex = j
-            evecs.append(evecsSampled[closestIndex])
+                dist = getDist(pointsAll[i], pointsAll[sampledIndex])
+                val = evecsSampled[j]
+                heapq.heappush(queue, (dist, val))
+            # Get k nearest
+            sum = []
+            for i in range(len(evecsSampled[0])):
+                sum.append(0.0)
+            for i in range(kNearest):
+                _, val = heapq.heappop(queue)
+                for j in range(len(sum)):
+                    sum[j] += val[j]
+            for i in range(len(sum)):
+                sum[i] /= kNearest
+
+            evecs.append(sum)
 
     return np.array(evecs)
 
 
 # Input: data
 # Output: evals (one per line), evecs (one per line)
-def mainRoutine (inputFile, evalFile, evecFile, sampleFraction):
+def mainRoutine (inputFile, evalFile, evecFile, sampleFraction, kNearest):
 
     # Read input
     pointsAll = np.loadtxt(inputFile, delimiter=",")
@@ -121,49 +134,37 @@ def mainRoutine (inputFile, evalFile, evecFile, sampleFraction):
 
     # Extend to include all points not sampled
     if sampleFraction:
-        evecs = extendSampleToAll(pointsAll, sampledIndices, evecs)
+        evecs = extendSampleToAll(pointsAll, sampledIndices, evecs, kNearest)
 
     # Write output
     np.savetxt(evalFile, evals, delimiter=",", fmt="%1.13f")
     np.savetxt(evecFile, evecs, delimiter=",", fmt="%1.13f")
 
-args = sys.argv
-numArgs = len(args)-1
 
-# Handle -sampleFraction flag
-sampleFraction = None
-if numArgs >= 2 and args[-2] == "-sampleFraction":
-    sampleFraction = float(args[-1])
-    numArgs -= 2
+def printInstructions():
+    print("Invalid args. Please use:")
+    print("-inputFile <file>")
+    print("-evalFile <file>")
+    print("-evecFile <file>")
+    print("Optional:")
+    print("-sampleFraction <0.2> (used for landmarking)")
+    print("-kNeareast <2> (used for landmarking. Default 1)")
 
-# Handle rest of data
-if numArgs == 3:
-    inputFile = args[1]
-    evalFile = args[2]
-    evecFile = args[3]
-    mainRoutine(inputFile, evalFile, evecFile, sampleFraction)
-elif numArgs == 4:
-    base = args[1]
-    inputFile = base + os.sep + args[2]
-    evalFile = base + os.sep + args[3]
-    evecFile = base + os.sep + args[4]
-    mainRoutine(inputFile, evalFile, evecFile, sampleFraction)
-elif numArgs == 2:
-    base = args[1]
-    inputFile = base + os.sep + args[2]
-    evalFile = base + os.sep + "evals"
-    evecFile = base + os.sep + "evecs.csv"
-    mainRoutine(inputFile, evalFile, evecFile, sampleFraction)
-elif numArgs == 1:
-    base = args[1]
-    inputFile = base + os.sep + "points.csv"
-    evalFile = base + os.sep + "evals"
-    evecFile = base + os.sep + "evecs.csv"
-    mainRoutine(inputFile, evalFile, evecFile, sampleFraction)
+requiredArgs = ["inputFile", "evalFile", "evecFile"]
+args = util.parseArgs(sys.argv, requiredArgs = requiredArgs)
+if not args:
+    printInstructions()
 else:
-    print("Must pass 1 to 4 args:")
-    print("- 3 args: input file, evalue output file, evector output file")
-    print("- 4 args: base folder + input, eval, evec")
-    print("  - 2 args: base folder + input. Default output: evals, evecs.csv")
-    print("  - 1 arg: base folder. Default input: points.csv")
-    print("Optional: -sampleFraction flag at the end")
+    inputFile = args["inputFile"][0]
+    evalFile = args["evalFile"][0]
+    evecFile = args["evecFile"][0]
+
+    sampleFraction = None
+    if "sampleFraction" in args:
+        sampleFraction = float(args["sampleFraction"][0])
+
+    kNearest = 1
+    if "kNearest" in args:
+        kNearest = int(args["kNearest"][0])
+
+    mainRoutine(inputFile, evalFile, evecFile, sampleFraction, kNearest)
